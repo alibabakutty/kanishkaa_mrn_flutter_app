@@ -250,90 +250,90 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
           foregroundColor: Colors.white,
           elevation: 0,
           actions: [
-            // Current Date
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
+          // Current Date
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 5,
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.7),
+                width: 1,
               ),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                DateFormat('dd MMM yyyy').format(DateTime.now()),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              DateFormat('dd MMM yyyy').format(DateTime.now()),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
+          ),
 
-            // Review Button
-            if (_hasItems)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber.shade700,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+          // Review Button
+          if (_hasItems)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber.shade700,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                  onPressed: _selectedSite == "Select Location"
-                      ? () => _showSnackBar(
-                          "Please select a site location first.",
-                        )
-                      : () async {
-                          final bool? orderSavedSuccessfully =
-                              await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder: (context) => CheckoutScreen(
-                                orderData: currentOrderData,
-                              ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                onPressed: _selectedSite == "Select Location"
+                    ? () => _showSnackBar(
+                        "Please select a site location first.",
+                      )
+                    : () async {
+                        final bool? orderSavedSuccessfully =
+                            await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (context) => CheckoutScreen(
+                              orderData: currentOrderData,
                             ),
-                          );
+                          ),
+                        );
 
-                          if (orderSavedSuccessfully == true) {
-                            setState(() {
-                              _resetOrder();
-                            });
-                          }
-                        },
-                  icon: const Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 16,
-                  ),
-                  label: Text(
-                    'Review ($_totalUniqueItems)',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        if (orderSavedSuccessfully == true) {
+                          setState(() {
+                            _resetOrder();
+                          });
+                        }
+                      },
+                icon: const Icon(
+                  Icons.shopping_cart_outlined,
+                  size: 16,
+                ),
+                label: Text(
+                  'Review ($_totalUniqueItems)',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-
-            // Refresh
-            IconButton(
-              icon: const Icon(Icons.refresh, size: 20),
-              onPressed: _loadInitialData,
             ),
-          ],
+
+          // Refresh
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 20),
+            onPressed: _loadInitialData,
+          ),
+        ],
         ),
         body: Column(
           children: [
@@ -589,13 +589,81 @@ class UniversalStringSearchDelegate
 
     return ListView.builder(
       itemCount: filtered.length,
+      padding: EdgeInsets.zero,
       itemBuilder: (context, index) {
         final site = filtered[index];
-        return ListTile(
-          leading: Icon(Icons.location_on_outlined, color: brandColor),
-          title: Text(site['siteName'] ?? ''),
-          subtitle: Text("Status: ${site['siteStatus'] ?? 'N/A'}"),
-          onTap: () => close(context, site),
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: Colors.grey.shade300,
+                width: 0.7,
+              ),
+              bottom: BorderSide(
+                color: Colors.grey.shade300,
+                width: 0.7,
+              ),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 5,
+          ),
+          child: InkWell(
+            onTap: () => close(context, site),
+            child: Row(
+              children: [
+                // Site icon
+                Icon(
+                  Icons.location_on_outlined,
+                  color: brandColor,
+                  size: 20,
+                ),
+
+                const SizedBox(width: 10),
+
+                // Site details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        site['siteName'] ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        "Status: ${site['siteStatus'] ?? 'N/A'}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Select indicator
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey.shade500,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -649,26 +717,94 @@ class ProductSearchDelegate extends SearchDelegate<Map<String, dynamic>?> {
 
     return ListView.builder(
       itemCount: suggestions.length,
+      padding: EdgeInsets.zero,
       itemBuilder: (context, index) {
         final item = suggestions[index];
-        return ListTile(
-          title: Text(item['itemName'] ?? ''),
-          subtitle: Text(
-            "Part No: ${item['partNumber']} | UOM: ${item['itemUom']}",
-          ),
-          trailing: ElevatedButton.icon(
-            onPressed: () => close(context, item),
-            icon: const Icon(Icons.add, size: 14),
-            label: const Text("Add", style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: brandColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: Colors.grey.shade300,
+                width: 0.7,
+              ),
+              bottom: BorderSide(
+                color: Colors.grey.shade300,
+                width: 0.7,
               ),
             ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 5,
+          ),
+          child: Row(
+            children: [
+              // Product details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item['itemName'] ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      "Part No: ${item['partNumber'] ?? ''} | "
+                      "UOM: ${item['itemUom'] ?? ''}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // Add button
+              SizedBox(
+                height: 28,
+                child: ElevatedButton.icon(
+                  onPressed: () => close(context, item),
+                  icon: const Icon(
+                    Icons.add,
+                    size: 14,
+                  ),
+                  label: const Text(
+                    "Add",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: brandColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
