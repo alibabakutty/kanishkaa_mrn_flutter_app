@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile_app/features/model/mrn_model.dart';
 import 'package:mobile_app/features/model/order_item_model.dart';
 import 'package:mobile_app/features/screens/checkout_screen.dart';
@@ -249,7 +250,32 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
           foregroundColor: Colors.white,
           elevation: 0,
           actions: [
-            // Review Button (Shows only when items are added)
+            // Current Date
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                DateFormat('dd MMM yyyy').format(DateTime.now()),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
+            // Review Button
             if (_hasItems)
               Padding(
                 padding: const EdgeInsets.only(right: 8.0),
@@ -269,23 +295,29 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
                     ),
                   ),
                   onPressed: _selectedSite == "Select Location"
-                      ? () => _showSnackBar("Please select a site location first.")
+                      ? () => _showSnackBar(
+                          "Please select a site location first.",
+                        )
                       : () async {
-                            final bool? orderSavedSuccessfully =
-                                await Navigator.of(context).push<bool>(
-                                  MaterialPageRoute(
-                                    builder: (context) => CheckoutScreen(
-                                      orderData: currentOrderData,
-                                    ),
-                                  ),
-                                );
-                            if (orderSavedSuccessfully == true) {
-                              setState(() {
-                                _resetOrder();
-                              });
-                            }
-                          },
-                  icon: const Icon(Icons.shopping_cart_outlined, size: 16),
+                          final bool? orderSavedSuccessfully =
+                              await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (context) => CheckoutScreen(
+                                orderData: currentOrderData,
+                              ),
+                            ),
+                          );
+
+                          if (orderSavedSuccessfully == true) {
+                            setState(() {
+                              _resetOrder();
+                            });
+                          }
+                        },
+                  icon: const Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 16,
+                  ),
                   label: Text(
                     'Review ($_totalUniqueItems)',
                     style: const TextStyle(
@@ -296,6 +328,7 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
                 ),
               ),
 
+            // Refresh
             IconButton(
               icon: const Icon(Icons.refresh, size: 20),
               onPressed: _loadInitialData,
