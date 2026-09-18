@@ -3,9 +3,12 @@ import 'package:intl/intl.dart';
 import 'package:mobile_app/features/model/mrn_model.dart';
 import 'package:mobile_app/features/model/order_item_model.dart';
 import 'package:mobile_app/features/screens/checkout_screen.dart';
+import 'package:mobile_app/features/screens/mrn_sub_widgets/quantity_selector.dart';
 import 'package:mobile_app/features/service/api_service.dart';
+import 'package:mobile_app/features/screens/mrn_sub_widgets/product_search_delegate.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile_app/features/provider/auth_provider.dart';
+import 'package:mobile_app/features/screens/mrn_sub_widgets/site_search_delegate.dart';
 
 class MaterialReceiptNoteScreen extends StatefulWidget {
   const MaterialReceiptNoteScreen({super.key});
@@ -21,6 +24,8 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
 
   // Active state variables
   String _selectedSite = "Select Location";
+  MrnOrderCompany _selectedCompany =
+      MrnOrderCompany.KANISHKAA_CIVIL_ENGINEERING_PRIVATE_LIMITED;
   bool _isLoadingSites = false;
   bool _isLoadingProducts = false;
 
@@ -45,7 +50,6 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
     _fetchInventory();
   }
 
-  // 1. Fetch Sites via Dio
   Future<void> _fetchSites() async {
     setState(() => _isLoadingSites = true);
     try {
@@ -60,7 +64,6 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
     }
   }
 
-  // 2. Fetch Inventory via Dio
   Future<void> _fetchInventory() async {
     setState(() => _isLoadingProducts = true);
     try {
@@ -82,7 +85,6 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
     );
   }
 
-  // Show discard warning if user has items added
   Future<bool> _showDiscardDialog() async {
     if (!_hasItems) return true;
 
@@ -113,7 +115,36 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
     setState(() {
       _addedItems.clear();
       _selectedSite = "Select Location";
+      _selectedCompany =
+          MrnOrderCompany.KANISHKAA_CIVIL_ENGINEERING_PRIVATE_LIMITED;
     });
+  }
+
+  /// Returns the exact siteCompany string matching the API JSON payload
+  String _getCompanyFullString(MrnOrderCompany company) {
+    switch (company) {
+      case MrnOrderCompany.KANISHKAA_CIVIL_ENGINEERING_PRIVATE_LIMITED:
+        return "KANISHKAA CIVIL ENGINEERING PRIVATE LIMITED";
+      case MrnOrderCompany.KANISHKAA_FOUNDATION:
+        return "KANISHKAA FOUNDATION";
+      case MrnOrderCompany.SHREE_VRIKSHAH_HOMES:
+        return "SHREE VRIKSHAH HOMES";
+      case MrnOrderCompany.SHREE_VRIKSHAH_HOMES_LLP:
+        return "SHREE VRIKSHAH HOMES LLP";
+    }
+  }
+
+  String _getCompanyDisplayName(MrnOrderCompany company) {
+    switch (company) {
+      case MrnOrderCompany.KANISHKAA_CIVIL_ENGINEERING_PRIVATE_LIMITED:
+        return "KCE";
+      case MrnOrderCompany.KANISHKAA_FOUNDATION:
+        return "KF";
+      case MrnOrderCompany.SHREE_VRIKSHAH_HOMES:
+        return "SVH";
+      case MrnOrderCompany.SHREE_VRIKSHAH_HOMES_LLP:
+        return "SVH_LLP";
+    }
   }
 
   void _pickSiteViaDelegate() async {
@@ -122,19 +153,34 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
       return;
     }
 
+    // Filter site database by currently selected company
+    final String targetCompany = _getCompanyFullString(_selectedCompany);
+    final List<Map<String, dynamic>> filteredSites = _siteDatabase
+        .where((site) =>
+            site['siteCompany']?.toString().trim() == targetCompany.trim())
+        .toList();
+
+    if (filteredSites.isEmpty) {
+      _showSnackBar(
+          "No sites available for ${_getCompanyDisplayName(_selectedCompany)}");
+      return;
+    }
+
     final Map<String, dynamic>? result =
         await showSearch<Map<String, dynamic>?>(
       context: context,
-      delegate: UniversalStringSearchDelegate(
+      delegate: SiteSearchDelegate(
         title: "Search Construction Sites",
-        dataset: _siteDatabase,
+        dataset: filteredSites,
         brandColor: brandColor,
       ),
     );
 
     if (result != null) {
       setState(() {
-        _selectedSite = result['siteName'] ?? "Unknown Site";
+        // Trim newlines (\n) present in API siteName
+        _selectedSite =
+            (result['siteName']?.toString() ?? "Unknown Site").trim();
       });
     }
   }
@@ -165,7 +211,8 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
           _addedItems.add({
             "id": result['id'],
             "name": result['itemName'],
-            "partNumber": result['partNumber']?.toString() ?? '',
+            "partNumber": result['partNumber']?.toString() ?? 'N/A',
+            "itemGroup": result['itemGroup']?.toString() ?? 'General',
             "itemUom": result['itemUom'] ?? '',
             "qty": 1,
             "rate": (result['itemRate'] as num?)?.toDouble() ?? 0.0,
@@ -184,36 +231,38 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
     });
   }
 
-  // Add this getter in _MaterialReceiptNoteScreenState class
   MrnModel get currentOrderData {
-    // Convert the added items to OrderItemModel list
     final orderItems = _addedItems.map((item) {
       return OrderItemModel(
         partNumber: item['partNumber']?.toString() ?? '',
         stockItemName: item['name'] ?? '',
+        stockItemGroup: item['itemGroup']?.toString() ?? 'General',
         uom: item['itemUom'] ?? '',
         quantity: (item['qty'] as num).toDouble(),
         rate: (item['rate'] as num?)?.toDouble() ?? 0.0,
       );
     }).toList();
 
-  return MrnModel(
-    orderNumber: "", // Will be generated by backend
-    siteName: _selectedSite == "Select Location" ? "" : _selectedSite,
-    executiveName: context.read<AuthProvider>().username ?? '',
-    orderItems: orderItems,
-    status: 'PENDING',
-    totalQty: 0.0,
-    totalAmt: 0.0, // This will be recalculated in CheckoutScreen
-    orderDate: DateTime.now(),
-    tallyStatus: 'Pending',
-  );
-}
+    return MrnModel(
+      orderNumber: "",
+      siteName: _selectedSite == "Select Location" ? "" : _selectedSite,
+      executiveId: context.read<AuthProvider>().userEmployeeId,
+      executiveName: context.read<AuthProvider>().username,
+      company: context.read<AuthProvider>().company,
+      mrnOrderCompany: _selectedCompany,
+      orderItems: orderItems,
+      status: 'PENDING',
+      totalQty: 0.0,
+      totalAmt: 0.0,
+      orderDate: DateTime.now(),
+      tallyStatus: 'PENDING',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final username = authProvider.username ?? "Admin";
+    final username = authProvider.username;
 
     return PopScope(
       canPop: !_hasItems,
@@ -229,6 +278,10 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7F9),
         appBar: AppBar(
+          backgroundColor: brandColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          titleSpacing: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, size: 20),
             onPressed: () async {
@@ -239,165 +292,226 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
               }
             },
           ),
-          title: const Text(
-            "New MRN",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          backgroundColor: brandColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          actions: [
-          // Current Date
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 5,
-            ),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.7),
-                width: 1,
-              ),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              DateFormat('dd MMM yyyy').format(DateTime.now()),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-
-          // Review Button
-          if (_hasItems)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber.shade700,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                onPressed: _selectedSite == "Select Location"
-                    ? () => _showSnackBar(
-                        "Please select a site location first.",
-                      )
-                    : () async {
-                        final bool? orderSavedSuccessfully =
-                            await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (context) => CheckoutScreen(
-                              orderData: currentOrderData,
-                            ),
-                          ),
-                        );
-
-                        if (orderSavedSuccessfully == true) {
-                          setState(() {
-                            _resetOrder();
-                          });
-                        }
-                      },
-                icon: const Icon(
-                  Icons.shopping_cart_outlined,
-                  size: 16,
-                ),
-                label: Text(
-                  'Review ($_totalUniqueItems)',
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  username,
                   style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(
+                  "New MRN",
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-            ),
-
-          // Refresh
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
-            onPressed: _loadInitialData,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  DateFormat('dd MMM yyyy').format(DateTime.now()),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+          actions: [
+            if (_hasItems)
+              Padding(
+                padding: const EdgeInsets.only(right: 2.0),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: _selectedSite == "Select Location"
+                      ? () => _showSnackBar("Please select a location first.")
+                      : () async {
+                          final bool? orderSavedSuccessfully =
+                              await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (context) => CheckoutScreen(
+                                orderData: currentOrderData,
+                              ),
+                            ),
+                          );
+
+                          if (orderSavedSuccessfully == true) {
+                            setState(() {
+                              _resetOrder();
+                            });
+                          }
+                        },
+                  icon: const Icon(Icons.shopping_cart_outlined, size: 14),
+                  label: Text(
+                    'Review ($_totalUniqueItems)',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 20),
+              onPressed: _loadInitialData,
+            ),
+          ],
         ),
         body: Column(
           children: [
-            // Header Block
+            // Company & Location Selector Row
             Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(color: Colors.grey.shade300, width: 1),
+                  bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
+                  // Company Selector
                   Expanded(
-                    child: Row(
-                      children: [
-                        Icon(Icons.person_pin, color: brandColor, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            username,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(width: 1, height: 24, color: Colors.grey.shade300),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: InkWell(
-                      onTap: _pickSiteViaDelegate,
-                      borderRadius: BorderRadius.circular(4),
+                    flex: 4,
+                    child: Container(
+                      height: 38,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
                       child: Row(
                         children: [
-                          Icon(Icons.location_city,
-                              color: brandColor, size: 20),
-                          const SizedBox(width: 8),
+                          Icon(Icons.business, color: brandColor, size: 16),
+                          const SizedBox(width: 6),
                           Expanded(
-                            child: _isLoadingSites
-                                ? const SizedBox(
-                                    height: 14,
-                                    width: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : Text(
-                                    _selectedSite,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: _selectedSite == "Select Location"
-                                          ? Colors.orange.shade800
-                                          : Colors.black87,
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<MrnOrderCompany>(
+                                value: _selectedCompany,
+                                isExpanded: true,
+                                icon: Icon(
+                                  Icons.arrow_drop_down,
+                                  color: brandColor,
+                                  size: 18,
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                                onChanged: (MrnOrderCompany? newValue) {
+                                  if (newValue != null &&
+                                      newValue != _selectedCompany) {
+                                    setState(() {
+                                      _selectedCompany = newValue;
+                                      // Reset selected site when company changes to prevent mismatched location selection
+                                      _selectedSite = "Select Location";
+                                    });
+                                  }
+                                },
+                                items: MrnOrderCompany.values.map((company) {
+                                  return DropdownMenuItem<MrnOrderCompany>(
+                                    value: company,
+                                    child: Text(
+                                      _getCompanyDisplayName(company),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                          ),
-                          const Icon(
-                            Icons.arrow_drop_down,
-                            size: 18,
-                            color: Colors.grey,
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
                         ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // Filtered Location Picker
+                  Expanded(
+                    flex: 5,
+                    child: InkWell(
+                      onTap: _pickSiteViaDelegate,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_city,
+                              color: brandColor,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: _isLoadingSites
+                                  ? const SizedBox(
+                                      height: 12,
+                                      width: 12,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      _selectedSite,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: _selectedSite == "Select Location"
+                                            ? Colors.orange.shade800
+                                            : Colors.black87,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                            ),
+                            const Icon(
+                              Icons.arrow_drop_down,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -451,363 +565,107 @@ class _MaterialReceiptNoteScreenState extends State<MaterialReceiptNoteScreen> {
                     )
                   : ListView.builder(
                       itemCount: _addedItems.length,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       itemBuilder: (context, index) {
                         final item = _addedItems[index];
+                        final String group = item['itemGroup']?.toString() ?? '';
+                        final String partNo = item['partNumber']?.toString() ?? 'N/A';
+                        final String uom = item['itemUom']?.toString() ?? '';
+
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                          margin: const EdgeInsets.only(bottom: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: Colors.grey.shade200),
                           ),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
+                              // Left Content: Item details compactly aligned
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      item['name'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13.5,
-                                      ),
+                                    // Top Row: Item Name + Group Tag
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            item['name'] ?? '',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12.5,
+                                              height: 1.1,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (group.isNotEmpty) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: brandColor.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(3),
+                                            ),
+                                            child: Text(
+                                              group,
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: brandColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                     const SizedBox(height: 2),
+                                    // Bottom Row: Part No & UOM
                                     Text(
-                                      "Part No: ${item['partNumber']?.toString() ?? ''} | UOM: ${item['itemUom']?.toString() ?? ''}",
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 11,
+                                      "Part: $partNo  •  UOM: $uom",
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 10.5,
+                                        height: 1.1,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
                               ),
-                              Row(
-                                children: [
-                                  InkWell(
-                                    onTap: () => _updateQuantity(index, -1),
-                                    child: Icon(
-                                      Icons.remove_circle_outline,
-                                      color: Colors.grey.shade600,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10.0,
-                                    ),
-                                    child: Text(
-                                      "${item['qty']}",
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  InkWell(
-                                    onTap: () => _updateQuantity(index, 1),
-                                    child: Icon(
-                                      Icons.add_circle_outline,
-                                      color: brandColor,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ],
+
+                              const SizedBox(width: 8),
+
+                              // Right Content: Quantity Selector
+                              QuantitySelector(
+                                quantity: item['qty'],
+                                brandColor: brandColor,
+                                onChanged: (newQty) {
+                                  setState(() {
+                                    _addedItems[index]['qty'] = newQty;
+                                  });
+                                },
+                                onIncrement: () => _updateQuantity(index, 1),
+                                onDecrement: () => _updateQuantity(index, -1),
                               ),
                             ],
                           ),
                         );
                       },
-                    ),
+                    )
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// Search Delegates stay the same
-class UniversalStringSearchDelegate
-    extends SearchDelegate<Map<String, dynamic>?> {
-  final String title;
-  final List<Map<String, dynamic>> dataset;
-  final Color brandColor;
-
-  UniversalStringSearchDelegate({
-    required this.title,
-    required this.dataset,
-    required this.brandColor,
-  });
-
-  @override
-  String get searchFieldLabel => title;
-
-  @override
-  List<Widget>? buildActions(BuildContext context) => [
-        if (query.isNotEmpty)
-          IconButton(
-              icon: const Icon(Icons.clear), onPressed: () => query = ''),
-      ];
-
-  @override
-  Widget? buildLeading(BuildContext context) => IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => close(context, null),
-      );
-
-  @override
-  Widget buildResults(BuildContext context) => _filterData();
-
-  @override
-  Widget buildSuggestions(BuildContext context) => _filterData();
-
-  Widget _filterData() {
-    final filtered = dataset
-        .where((item) => (item['siteName'] ?? '')
-            .toString()
-            .toLowerCase()
-            .contains(query.toLowerCase()))
-        .toList();
-
-    if (filtered.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text("No matching site records found."),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: filtered.length,
-      padding: EdgeInsets.zero,
-      itemBuilder: (context, index) {
-        final site = filtered[index];
-
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              top: BorderSide(
-                color: Colors.grey.shade300,
-                width: 0.7,
-              ),
-              bottom: BorderSide(
-                color: Colors.grey.shade300,
-                width: 0.7,
-              ),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 5,
-          ),
-          child: InkWell(
-            onTap: () => close(context, site),
-            child: Row(
-              children: [
-                // Site icon
-                Icon(
-                  Icons.location_on_outlined,
-                  color: brandColor,
-                  size: 20,
-                ),
-
-                const SizedBox(width: 10),
-
-                // Site details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        site['siteName'] ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        "Status: ${site['siteStatus'] ?? 'N/A'}",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Select indicator
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey.shade500,
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class ProductSearchDelegate extends SearchDelegate<Map<String, dynamic>?> {
-  final List<Map<String, dynamic>> products;
-  final Color brandColor;
-
-  ProductSearchDelegate({required this.products, required this.brandColor});
-
-  @override
-  String get searchFieldLabel => "Search Inventory Materials";
-
-  @override
-  List<Widget>? buildActions(BuildContext context) => [
-        if (query.isNotEmpty)
-          IconButton(
-              icon: const Icon(Icons.clear), onPressed: () => query = ''),
-      ];
-
-  @override
-  Widget? buildLeading(BuildContext context) => IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => close(context, null),
-      );
-
-  @override
-  Widget buildResults(BuildContext context) => _renderItems();
-
-  @override
-  Widget buildSuggestions(BuildContext context) => _renderItems();
-
-  Widget _renderItems() {
-    final suggestions = products
-        .where((p) =>
-            (p['itemName'] ?? '')
-                .toString()
-                .toLowerCase()
-                .contains(query.toLowerCase()) ||
-            (p['partNumber'] ?? '')
-                .toString()
-                .toLowerCase()
-                .contains(query.toLowerCase()))
-        .toList();
-
-    if (suggestions.isEmpty) {
-      return const Center(child: Text("No inventory materials match."));
-    }
-
-    return ListView.builder(
-      itemCount: suggestions.length,
-      padding: EdgeInsets.zero,
-      itemBuilder: (context, index) {
-        final item = suggestions[index];
-
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              top: BorderSide(
-                color: Colors.grey.shade300,
-                width: 0.7,
-              ),
-              bottom: BorderSide(
-                color: Colors.grey.shade300,
-                width: 0.7,
-              ),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 5,
-          ),
-          child: Row(
-            children: [
-              // Product details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      item['itemName'] ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      "Part No: ${item['partNumber'] ?? ''} | "
-                      "UOM: ${item['itemUom'] ?? ''}",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // Add button
-              SizedBox(
-                height: 28,
-                child: ElevatedButton.icon(
-                  onPressed: () => close(context, item),
-                  icon: const Icon(
-                    Icons.add,
-                    size: 14,
-                  ),
-                  label: const Text(
-                    "Add",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: brandColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

@@ -13,12 +13,15 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Watch the provider to pull user details dynamically
     final authProvider = context.watch<AuthProvider>();
-    final username = authProvider.username ?? 'No Name';
-    final email = authProvider.email ?? 'Not available';
-    final mobileNumber = authProvider.mobileNumber ?? 'Not available';
+    final username = authProvider.username.isNotEmpty ? authProvider.username : 'No Name';
+    final email = authProvider.email.isNotEmpty ? authProvider.email : 'Not available';
+    final mobileNumber = authProvider.mobileNumber.isNotEmpty ? authProvider.mobileNumber : 'Not available';
+    final userEmployeeId = authProvider.userEmployeeId.isNotEmpty ? authProvider.userEmployeeId : 'Not available';
+    final company = authProvider.company.isNotEmpty ? authProvider.company : 'Not available';
+    final role = authProvider.role.isNotEmpty ? authProvider.role : 'Site Engineer';
 
     return Scaffold(
-      backgroundColor:  Colors.white, // Matching your dark theme
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: const Color(0xFF0C685B),
         elevation: 0,
@@ -38,10 +41,11 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 60,
-                    backgroundColor: Colors.grey,
-                    child: CircleAvatar(
-                      radius: 60,
-                      child: const Icon(
+                    backgroundColor: Colors.grey.shade200,
+                    child: const CircleAvatar(
+                      radius: 58,
+                      backgroundColor: Colors.white,
+                      child: Icon(
                         Icons.person_outline,
                         size: 60,
                         color: Color(0xFF005447),
@@ -64,33 +68,43 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Site Engineer',
-              style: TextStyle(
+              role,
+              style: const TextStyle(
                 color: Color(0xFF349083),
                 fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
             // 3. Information Cards / Options
-
+            _buildProfileTile(
+              icon: Icons.badge_outlined,
+              title: 'Employee ID',
+              trailingText: userEmployeeId,
+            ),
             const SizedBox(height: 12),
             _buildProfileTile(
-              icon: Icons.mail,
+              icon: Icons.business_outlined,
+              title: 'Company',
+              trailingText: company,
+            ),
+            const SizedBox(height: 12),
+            _buildProfileTile(
+              icon: Icons.mail_outline,
               title: 'Email',
               trailingText: email,
             ),
             const SizedBox(height: 12),
             _buildProfileTile(
-              icon: Icons.call,
+              icon: Icons.call_outlined,
               title: 'Mobile Number',
               trailingText: mobileNumber,
-
             ),
-            
+
             const SizedBox(height: 40),
 
-            // 4. Log Out Button tied to AuthProvider state
+            // 4. Log Out Button
             SizedBox(
               width: double.infinity,
               height: 56,
@@ -129,38 +143,44 @@ class ProfileScreen extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.6),
+          color: const Color(0xFF0C685B).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(icon,  color: const Color(0xFF0C685B)),
-            const SizedBox(width: 16),
+            Icon(icon, color: const Color(0xFF0C685B)),
+            const SizedBox(width: 14),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF0C685B),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
-                title,
+                trailingText ?? '',
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
                 style: const TextStyle(
-                  color:  Color(0xFF0C685B),
-                  fontSize: 16,
+                  color: Color(0xFF005447),
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            if (trailingText != null)
-              Text(
-                trailingText,
-                style: TextStyle(
-                  color: Color(0xFF005447),
-                  fontSize: 15,
-                ),
-              )
-            else if (onTap != null)
+            if (onTap != null) ...[
+              const SizedBox(width: 8),
               Icon(
                 Icons.chevron_right,
-                color: Colors.white.withValues(alpha: 0.3),
+                color: const Color(0xFF0C685B).withValues(alpha: 0.5),
               ),
+            ],
           ],
         ),
       ),
@@ -200,13 +220,13 @@ class ProfileScreen extends StatelessWidget {
                 // 3. WIPE the navigation stack entirely and send them to Login
                 Navigator.of(context).pushAndRemoveUntil(
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(), // Ensure LoginScreen is imported
+                    pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(
                         opacity: animation,
                         child: SlideTransition(
                           position: Tween<Offset>(
-                            begin: const Offset(0.0, -0.04), // Subtle downward slide out
+                            begin: const Offset(0.0, -0.04),
                             end: Offset.zero,
                           ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
                           child: child,
@@ -215,7 +235,7 @@ class ProfileScreen extends StatelessWidget {
                     },
                     transitionDuration: const Duration(milliseconds: 500),
                   ),
-                      (route) => false, // This condition 'false' drops ALL existing screens from history
+                  (route) => false,
                 );
               },
               child: const Text('Log Out', style: TextStyle(color: Colors.redAccent)),

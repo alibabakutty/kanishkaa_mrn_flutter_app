@@ -14,17 +14,20 @@ class AuthProvider extends ChangeNotifier {
   String? _userEmployeeId;
   String? _mobileNumber;
   String? _email;
+  String? _company;
 
   bool get isInitializing => _isInitializing;
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
 
-  String? get token => _token;
-  String? get username => _username;
-  String? get role => _role;
-  String? get userEmployeeId => _userEmployeeId;
-  String? get mobileNumber => _mobileNumber;
-  String? get email => _email;
+  // In AuthProvider.dart
+  String get token => _token ?? '';
+  String get username => _username ?? '';
+  String get role => _role ?? '';
+  String get userEmployeeId => _userEmployeeId ?? '';
+  String get mobileNumber => _mobileNumber ?? '';
+  String get email => _email ?? '';
+  String get company => _company ?? '';
 
   Future<void> initialize() async {
     _isInitializing = true;
@@ -39,16 +42,20 @@ class AuthProvider extends ChangeNotifier {
         return;
       }
 
+      final savedUserEmployeeId = await AuthStorageService.getUserEmployeeId();
       final savedUsername = await AuthStorageService.getUsername();
       final savedEmail = await AuthStorageService.getEmail();
       final savedMobile = await AuthStorageService.getMobileNumber();
       final savedRole = await AuthStorageService.getRole();
+      final savedCompany = await AuthStorageService.getCompany();
 
       _token = savedToken;
+      _userEmployeeId = savedUserEmployeeId;
       _username = savedUsername;
       _email = savedEmail;
       _mobileNumber = savedMobile;
       _role = savedRole;
+      _company = savedCompany;
       _isAuthenticated = true;
     } catch (e) {
       debugPrint('Initialize auth error: $e');
@@ -78,25 +85,31 @@ class AuthProvider extends ChangeNotifier {
       final token = data['token']?.toString();
 
       if (token != null && token.isNotEmpty) {
+        final userEmployeeId = data['userEmployeeId']?.toString();
         final userUsername = data['username']?.toString();
         final email = data['email']?.toString();
         final mobileNumber = data['mobileNumber']?.toString();
         final role = data['role']?.toString();
+        final company = data['company']?.toString();
 
         // Save token + user details
         await AuthStorageService.saveAuth(
           token: token,
+          userEmployeeId: userEmployeeId,
           username: userUsername,
           email: email,
           mobileNumber: mobileNumber,
           role: role,
+          company: company,
         );
 
         _token = token;
+        _userEmployeeId = userEmployeeId;
         _username = userUsername;
         _email = email;
         _mobileNumber = mobileNumber;
         _role = role;
+        _company = company;
         _isAuthenticated = true;
 
         notifyListeners();
@@ -138,6 +151,7 @@ class AuthProvider extends ChangeNotifier {
     _userEmployeeId = null;
     _mobileNumber = null;
     _email = null;
+    _company = null;
 
     if (notify) {
       notifyListeners();

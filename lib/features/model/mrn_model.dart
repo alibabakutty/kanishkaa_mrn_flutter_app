@@ -1,9 +1,20 @@
 import 'order_item_model.dart';
 
+
+enum MrnOrderCompany {
+  KANISHKAA_CIVIL_ENGINEERING_PRIVATE_LIMITED,
+  KANISHKAA_FOUNDATION,
+  SHREE_VRIKSHAH_HOMES,
+  SHREE_VRIKSHAH_HOMES_LLP,
+}
+
 class MrnModel {
   final String? orderNumber;
   final String siteName;
+  final String? executiveId;
   final String? executiveName;
+  final String? company;
+  final MrnOrderCompany mrnOrderCompany;
   final String status;
   final String tallyStatus;
 
@@ -18,7 +29,10 @@ class MrnModel {
   MrnModel({
     this.orderNumber,
     required this.siteName,
+    required this.executiveId,
     required this.executiveName,
+    required this.company,
+    required this.mrnOrderCompany,
     required this.orderItems,
     required this.status,
     required this.totalQty,
@@ -32,7 +46,10 @@ class MrnModel {
     return <String, dynamic>{
       if (orderNumber != null) "orderNumber": orderNumber,
       "siteName": siteName,
+      "executiveId": executiveId,
       "executiveName": executiveName,
+      "company": company,
+      'mrnOrderCompany': mrnOrderCompany.name,
       "totalQty": totalQty,
       "totalUom": totalUom,
       "totalAmt": totalAmt,
@@ -46,7 +63,10 @@ class MrnModel {
     return MrnModel(
       orderNumber: json['orderNumber']?.toString(),
       siteName: json['siteName'] ?? '',
+      executiveId: json['executiveId'] ?? '',
       executiveName: json['executiveName'] ?? '',
+      company: json['company'] ?? '',
+      mrnOrderCompany: _parseMrnOrderCompany(json['mrnOrderCompany']),
       status: json['status'] ?? 'PENDING',
       tallyStatus: json['tallyStatus'] ?? '',
 
@@ -68,6 +88,18 @@ class MrnModel {
     );
   }
 
+  // Safe enum parser with a fallback default value
+  static MrnOrderCompany _parseMrnOrderCompany(dynamic rawValue) {
+    if (rawValue == null) {
+      return MrnOrderCompany.KANISHKAA_CIVIL_ENGINEERING_PRIVATE_LIMITED;
+    }
+
+    return MrnOrderCompany.values.firstWhere(
+      (e) => e.name == rawValue.toString(),
+      orElse: () => MrnOrderCompany.KANISHKAA_CIVIL_ENGINEERING_PRIVATE_LIMITED,
+    );
+  }
+
   MrnModel copyWith({
     String? siteName,
     String? orderNumber,
@@ -75,7 +107,10 @@ class MrnModel {
     double? totalQty,
     String? totalUom,
     double? totalAmt,
+    String? executiveId,
     String? executiveName,
+    String? company,
+    MrnOrderCompany? mrnOrderCompany,
     String? status,
     String? tallyStatus,
     DateTime? orderDate,
@@ -87,7 +122,10 @@ class MrnModel {
       totalQty: totalQty ?? this.totalQty,
       totalUom: totalUom ?? this.totalUom,
       totalAmt: totalAmt ?? this.totalAmt,
+      executiveId: executiveId ?? this.executiveId,
       executiveName: executiveName ?? this.executiveName,
+      company: company ?? this.company,
+      mrnOrderCompany: mrnOrderCompany ?? this.mrnOrderCompany,
       status: status ?? this.status,
       orderDate: orderDate ?? this.orderDate,
       tallyStatus: tallyStatus ?? this.tallyStatus,

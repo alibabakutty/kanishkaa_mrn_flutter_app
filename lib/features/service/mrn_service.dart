@@ -28,7 +28,7 @@ class MrnService {
   static Future<List<Object>> getAllOrders() async {
     try {
       final response = await ApiService.authorizedGet(
-        '/api/v1/orders/all-orders',
+        '/api/v1/orders/all-flat-orders',
       );
 
       if (response.statusCode == 200) {
@@ -49,7 +49,7 @@ class MrnService {
   static Future<List<MrnModel>> fetchAllOrders() async {
     try {
       final response = await ApiService.authorizedGet(
-        '/api/v1/orders/fetch-orders',
+        '/api/v1/orders/all-normal-orders',
       );
 
       // debugPrint('Status code: ${response.statusCode}');
