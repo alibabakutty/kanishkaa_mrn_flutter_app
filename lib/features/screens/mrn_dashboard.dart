@@ -373,13 +373,13 @@ class _MrnDashboardState extends State<MrnDashboard> {
 
                                       const SizedBox(height: 6),
 
-                                      // ROW 2: Invoice No & Status Badge
+                                      // ROW 2: MRN Order No & Status Badge
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            "Sale Order No: ${order.orderNumber ?? 'N/A'}",
+                                            "MRN Order No: ${order.orderNumber ?? 'N/A'}",
                                             style: TextStyle(
                                               fontSize: 13,
                                               color: Colors.grey[600],

@@ -2,9 +2,11 @@
 
     <!-- 1. Added INTERNET permission -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 2. Added POST_NOTIFICATIONS permission for Android 13+ (API level 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
-        android:label="mobile_app"
+        android:label="Kanishkaa MRN"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

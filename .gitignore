@@ -31,10 +31,13 @@ migrate_working_dir/
 /build/
 coverage/
 
+
 # Environment / secrets
 .env
 .env.*
 !.env.example
+*.jks
+key.properties
 
 # Symbolication
 app.*.symbols

@@ -107,7 +107,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               Text(
-                '${context.watch<AuthProvider>().username}',
+                context.watch<AuthProvider>().username,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
